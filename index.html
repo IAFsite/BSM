@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSM Dashboard</title>
+
+<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:Arial, Helvetica, sans-serif;background:#0f0f12;color:#fff;}
+.topbar{position:fixed;top:0;left:0;width:100%;padding:20px 30px;font-weight:bold;z-index:999;}
+.topbar .logo {font-size:24px; color:#fff;}
+.hero{position:relative;height:50vh;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#14141b;overflow:hidden;}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:brightness(0.7);}
+.hero h1{position:relative;font-size:48px;margin:0;}
+.hero p{position:relative;color:#aaa;font-size:18px;margin-top:8px;}
+.section{padding:80px 60px 40px 60px;max-width:1200px;margin:auto;}
+h2{margin-bottom:30px;font-size:28px;}
+.grid{display:grid;grid-template-columns:repeat(4, 1fr);gap:20px;}
+.unit-card{background:#1b1b24;border-radius:12px;padding:16px;transition:.2s;}
+.unit-card:hover{background:#22222c;}
+.unit-card h3{margin:0 0 6px 0;font-size:18px;}
+.unit-card p{margin:2px 0;font-size:14px;color:#ccc;}
+.search-box{margin-bottom:25px;}
+.search-box input{width:100%;padding:12px 16px;border-radius:12px;border:none;background:#1b1b24;color:white;font-size:15px;outline:none;}
+.search-box input:focus{background:#22222c;}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr);}.hero h1{font-size:36px;}}
+@media(max-width:500px){.grid{grid-template-columns:1fr;}.hero h1{font-size:28px;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">BSM</div>
+</div>
+
+<section class="hero">
+  <img src="https://images.unsplash.com/photo-1522199710521-72d69614c702?auto=format&fit=crop&w=1950&q=80" alt="Hero Image">
+  <h1>BSM Personnel Dashboard</h1>
+  <p>Database Personnel | Don't be afraid, adapt</p>
+</section>
+
+<section class="section">
+  <div class="search-box">
+    <input 
+      type="text" 
+      id="searchInput" 
+      placeholder="Search name / unit ID / project..." 
+      oninput="filterUnits()"
+    >
+  </div>
+
+  <h2>All Units</h2>
+  <div class="grid" id="unitGrid"></div>
+</section>
+
+<script>
+// JSON base
+const base = {
+  "ranks": ["Private", "Specialist", "Corporal", "Sergeant", "Lieutenant", "Captain", "Major"],
+  "first_names": ["James","Olivia","Liam","Emma","Noah","Ava","Elijah","Sophia","Lucas","Mia","Mason","Isabella","Ethan","Charlotte","Alexander","Amelia","Henry","Harper","Jacob","Evelyn","Michael"],
+  "last_names": ["Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis","Rodriguez","Martinez","Hernandez","Lopez","Gonzalez","Wilson","Anderson","Thomas","Taylor","Moore","Jackson","Martin"]
+};
+
+// util
+function randomFromArray(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function randomDigit(){return Math.floor(Math.random()*10);}
+function randomLetter(){return String.fromCharCode(65 + Math.floor(Math.random()*26));}
+function generateUnitID(){return `${randomDigit()}${randomLetter()}${randomLetter()}${randomDigit()}${randomLetter()}${randomLetter()}${randomDigit()}${randomLetter()}${randomLetter()}${randomDigit()}`;}
+function generateServeLocation(){return `PTV4 ${randomDigit()}${randomDigit()}${randomDigit()}${randomDigit()}${randomDigit()}${randomDigit()}`;}
+function generateSoldier(base){
+  const birthYear = 3058 + Math.floor(Math.random()*(3080-3058));
+  const deathYear = birthYear + Math.floor(Math.random()*(3080-birthYear));
+  return {
+    rank: randomFromArray(base.ranks),
+    first_name: randomFromArray(base.first_names),
+    last_name: randomFromArray(base.last_names),
+    birth_year: birthYear,
+    death_year: deathYear,
+    unit_id: generateUnitID(),
+    serve_location: generateServeLocation()
+  };
+}
+
+// infinite scroll setup
+let allUnits = [];
+let loadedCount = 0;
+const batchSize = 20; // generate 20 each batch
+const defaultLoad = 80;
+
+// load awal default 80
+for(let i=0;i<defaultLoad;i++) allUnits.push(generateSoldier(base));
+renderUnits(allUnits.slice(0,batchSize));
+loadedCount = batchSize;
+
+function renderUnits(units){
+  const grid = document.getElementById("unitGrid");
+  units.forEach(u=>{
+    const card = document.createElement("div");
+    card.className="unit-card";
+    card.innerHTML = `
+      <h3>${u.rank} ${u.first_name} ${u.last_name}</h3>
+      <p>Unit ID: ${u.unit_id}</p>
+      <p>Born: ${u.birth_year} - Died: ${u.death_year}</p>
+      <p>Serve: ${u.serve_location}</p>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function filterUnits(){
+  const keyword = document.getElementById("searchInput").value.toLowerCase();
+  const filtered = allUnits.filter(u=>
+    u.rank.toLowerCase().includes(keyword) ||
+    u.first_name.toLowerCase().includes(keyword) ||
+    u.last_name.toLowerCase().includes(keyword) ||
+    u.unit_id.toLowerCase().includes(keyword) ||
+    u.serve_location.toLowerCase().includes(keyword)
+  );
+  document.getElementById("unitGrid").innerHTML = "";
+  renderUnits(filtered);
+}
+
+// infinite scroll
+window.addEventListener('scroll', () => {
+  const scrollTop = window.scrollY;
+  const windowHeight = window.innerHeight;
+  const docHeight = document.documentElement.scrollHeight;
+
+  if(scrollTop + windowHeight >= docHeight - 50){
+    // generate next batch
+    let newUnits = [];
+    for(let i=0;i<batchSize;i++){
+      const u = generateSoldier(base);
+      allUnits.push(u);
+      newUnits.push(u);
+    }
+    renderUnits(newUnits);
+  }
+});
+</script>
+
+</body>
+</html>
